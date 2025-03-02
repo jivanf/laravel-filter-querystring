@@ -1,6 +1,6 @@
 {
-  "name": "mehradsadeghi/laravel-filter-querystring",
-  "description": "Filter your queries based on url query string parameters like a breeze.",
+  "name": "jivanf/laravel-filter-querystring",
+  "description": "Fork of mehradsadeghi/laravel-filter-querystring with updated dependencies",
   "keywords": [
     "query",
     "query-string",
