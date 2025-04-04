@@ -3,7 +3,7 @@
 namespace Mehradsadeghi\FilterQueryString;
 
 use Illuminate\Pipeline\Pipeline;
-use Mehradsadeghi\FilterQueryString\Filters\{OrderbyClause, WhereClause, WhereInClause, WhereLikeClause};
+use Mehradsadeghi\FilterQueryString\Filters\{BaseClause, OrderbyClause, WhereClause, WhereInClause, WhereLikeClause};
 use Mehradsadeghi\FilterQueryString\Filters\ComparisonClauses\{GreaterOrEqualTo, GreaterThan, LessOrEqualTo, LessThan};
 use Mehradsadeghi\FilterQueryString\Filters\ComparisonClauses\Between\{Between, NotBetween};
 
@@ -11,7 +11,10 @@ trait FilterQueryString {
 
     use Resolvings;
 
-    private $availableFilters = [
+    /**
+     * @var array<string, class-string<BaseClause>>
+     */
+    private array $availableFilters = [
         'default' => WhereClause::class,
         'sort' => OrderbyClause::class,
         'greater' => GreaterThan::class,
@@ -26,9 +29,9 @@ trait FilterQueryString {
 
     public function scopeFilter($query, ...$filters)
     {
-        $filters = collect($this->getFilters($filters))->map(function ($values, $filter) {
-            return $this->resolve($filter, $values);
-        })->toArray();
+        $filters = collect($this->getFilters($filters))->map(
+            fn(string|array $value, string $filter) => $this->resolve($filter, $this->unserializeValue($value))
+        )->toArray();
 
         return app(Pipeline::class)
             ->send($query)
@@ -36,15 +39,27 @@ trait FilterQueryString {
             ->thenReturn();
     }
 
-    private function getFilters($filters)
+    private function getFilters($filters): array
     {
-        $filter = function ($key) use($filters) {
-
+        $filter = function ($key) use ($filters) {
             $filters = $filters ?: $this->filters ?: [];
 
-            return $this->unguardFilters != true ? in_array($key, $filters) : true;
+            return $this->unguardFilters || in_array($key, $filters);
         };
 
         return array_filter(request()->query(), $filter, ARRAY_FILTER_USE_KEY) ?? [];
+    }
+
+    private function unserializeValue(string|array $value): string|array|bool|null
+    {
+        if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+            return (bool) $value;
+        }
+
+        if ($value === 'null') {
+            return null;
+        }
+
+        return $value;
     }
 }
